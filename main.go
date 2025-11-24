@@ -27,7 +27,7 @@ func main() {
 
 	// API routes
 	api := router.PathPrefix("/api").Subrouter()
-	
+
 	// User routes
 	api.HandleFunc("/users", userHandler.GetAllUsers).Methods("GET")
 	api.HandleFunc("/users/{id:[0-9]+}", userHandler.GetUserByID).Methods("GET")
@@ -68,4 +68,3 @@ func main() {
 		log.Fatal("Server failed to start:", err)
 	}
 }
-
