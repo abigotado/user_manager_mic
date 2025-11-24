@@ -29,3 +29,9 @@ go.work
 # OS
 .DS_Store
 Thumbs.db
+
+# Вспомогательные файлы для разработки (не для проверяющего)
+test_api.sh
+load_test.sh
+REPORT_TEMPLATE.md
+IMPLEMENTATION_SUMMARY.md
