@@ -68,7 +68,12 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Создаем пользователя
-	savedUser := h.service.Create(user)
+	savedUser, err := h.service.Create(user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		go utils.LogError("CreateUser", err)
+		return
+	}
 	
 	// Асинхронное логирование (после присвоения ID)
 	go utils.LogUserAction("CREATE", savedUser.ID)

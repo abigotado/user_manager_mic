@@ -44,10 +44,10 @@ func (s *UserService) GetByID(id int) (*models.User, error) {
 }
 
 // Create создает нового пользователя
-func (s *UserService) Create(user models.User) *models.User {
+func (s *UserService) Create(user models.User) (*models.User, error) {
 	// Валидация
 	if err := user.Validate(); err != nil {
-		panic(err) // В реальном приложении лучше вернуть ошибку
+		return nil, err
 	}
 	
 	s.mu.Lock()
@@ -60,7 +60,7 @@ func (s *UserService) Create(user models.User) *models.User {
 	userCopy := user
 	s.users[user.ID] = &userCopy
 	
-	return &userCopy
+	return &userCopy, nil
 }
 
 // Update обновляет данные пользователя
