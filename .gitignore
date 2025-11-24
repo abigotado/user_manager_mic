@@ -1,11 +1,13 @@
-# Binaries for programs and plugins
+# Binaries
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+user-manager
+go-microservice
 
-# Test binary, built with `go test -c`
+# Test binary
 *.test
 
 # Output of the go coverage tool
@@ -27,5 +29,3 @@ go.work
 # OS
 .DS_Store
 Thumbs.db
-
-go-microservice
