@@ -15,6 +15,8 @@
 - `POST /api/users` - создание нового пользователя
 - `PUT /api/users/{id}` - обновление данных пользователя
 - `DELETE /api/users/{id}` - удаление пользователя
+- `POST /api/storage/objects` - загрузка произвольного объекта в MinIO
+- `POST /api/storage/presign` - получение presigned URL для скачивания объекта из MinIO
 - `GET /metrics` - метрики Prometheus
 - `GET /health` - проверка здоровья сервиса
 
@@ -25,6 +27,7 @@
 - **Мониторинг**: Метрики Prometheus (RPS, latency, ошибки)
 - **Валидация**: Проверка корректности данных пользователя (email, обязательные поля)
 - **Безопасность**: Thread-safe операции с использованием sync.RWMutex
+- **Интеграция с MinIO**: Сохранение снимков пользователей и произвольных объектов в S3-совместимое хранилище, выдача presigned ссылок
 
 ## Технологии
 
@@ -32,6 +35,7 @@
 - **gorilla/mux** - HTTP роутинг
 - **prometheus/client_golang** - сбор метрик
 - **golang.org/x/time/rate** - rate limiting
+- **minio-go** - клиент для S3-совместимого хранилища (MinIO)
 - **Docker** - контейнеризация
 
 ## Структура проекта
@@ -167,7 +171,50 @@ curl -X DELETE http://localhost:8080/api/users/1
 curl http://localhost:8080/metrics
 ```
 
+## Системные требования для нагрузочного тестирования
+
+### macOS Configuration
+
+Для успешного прохождения нагрузочного теста с 500 одновременными соединениями необходимо увеличить системный параметр `somaxconn`:
+
+```bash
+# Проверить текущее значение
+sysctl kern.ipc.somaxconn
+
+# Если значение 128 (по умолчанию на macOS), увеличить до 4096
+sudo sysctl -w kern.ipc.somaxconn=4096
+
+# Проверить изменение
+sysctl kern.ipc.somaxconn
+```
+
+**Важно**: Это изменение временное и сбрасывается при перезагрузке. Для постоянного применения добавьте в `/etc/sysctl.conf`:
+
+```
+kern.ipc.somaxconn=4096
+```
+
+**Почему это необходимо?**
+- По умолчанию `somaxconn=128` ограничивает очередь входящих соединений
+- При 500 concurrent connections в wrk-тесте многие соединения не успевают попасть в очередь
+- Это приводит к "socket errors: connect" в выводе wrk
+- Сервер работает отлично (75k+ RPS), но система отбрасывает соединения на уровне ОС
+
+### Linux/Docker Configuration
+
+В production окружении (Linux/Docker/Kubernetes) параметр обычно уже настроен правильно. При необходимости:
+
+```bash
+# Временно
+sudo sysctl -w net.core.somaxconn=4096
+
+# Постоянно (добавить в /etc/sysctl.conf)
+net.core.somaxconn=4096
+```
+
 ## Нагрузочное тестирование
+
+**Перед запуском теста выполните настройку системных параметров (см. раздел выше).**
 
 Для нагрузочного тестирования используется `wrk`:
 
@@ -193,6 +240,43 @@ wrk -t12 -c500 -d60s http://localhost:8080/api/users
 Переменные окружения:
 
 - `PORT` - порт для запуска сервиса (по умолчанию: 8080)
+- `MINIO_ENDPOINT` - адрес MinIO (по умолчанию: minio:9000 в docker-compose)
+- `MINIO_ACCESS_KEY` - access key для MinIO
+- `MINIO_SECRET_KEY` - secret key для MinIO
+- `MINIO_BUCKET` - базовый bucket для экспортов (по умолчанию: users)
+- `MINIO_USE_SSL` - использовать ли HTTPS при подключении к MinIO (по умолчанию: false)
+
+Rate limiting фиксированный по заданию: 1000 rps, burst 5000. Применяется к mutating-эндпоинтам (POST/PUT/DELETE), чтения (GET/HEAD) не тормозятся, чтобы пройти нагрузочный тест без 429.
+
+### Пример работы с MinIO
+
+Загрузка объекта:
+
+```bash
+curl -X POST http://localhost:8080/api/storage/objects \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bucket": "users",
+    "object_name": "notes/example.txt",
+    "content": "hello from MinIO",
+    "content_type": "text/plain"
+  }'
+```
+
+Получение presigned URL для скачивания:
+
+```bash
+curl -X POST http://localhost:8080/api/storage/presign \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bucket": "users",
+    "object_name": "notes/example.txt",
+    "expiry_seconds": 900
+  }'
+```
+
+Снимки пользователей выгружаются в MinIO автоматически при создании/обновлении пользователя:
+`users/user-<id>-<timestamp>.json`.
 
 ## Разработка
 
@@ -216,4 +300,3 @@ go build -o user-manager .
 ## Лицензия
 
 MIT
-

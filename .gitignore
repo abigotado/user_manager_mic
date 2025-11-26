@@ -1,37 +1,58 @@
 # Binaries
+main
+user-manager
+go-microservice
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
-user-manager
-go-microservice
 
-# Test binary
+# Test binary, built with `go test -c`
 *.test
 
-# Output of the go coverage tool
+# Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# Dependency directories
-vendor/
+# Dependency directories (remove the comment below to include it)
+# vendor/
 
 # Go workspace file
 go.work
 
-# IDE
+# OS Specific
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# IDEs
 .idea/
 .vscode/
 *.swp
 *.swo
-*~
 
-# OS
-.DS_Store
-Thumbs.db
+# Logs
+*.log
 
-# Вспомогательные файлы для разработки (не для проверяющего)
-test_api.sh
-load_test.sh
-REPORT_TEMPLATE.md
+# Archives
+*.tar.gz
+*.zip
+*.rar
+
+# Temporary files
+tmp/
+temp/
+archive_temp_*/
+REPORT_FULL.md
+*.docx
+
+# Build scripts & artifacts
+build_archive.sh
+diagnose.sh
+test_normal_load.sh
+ARCHIVE_CONTENTS.txt
 IMPLEMENTATION_SUMMARY.md
+
+# Local cache
+.gocache/

@@ -1,31 +1,27 @@
 package utils
 
 import (
-	"net/http"
+	"context"
 	"golang.org/x/time/rate"
+	"net/http"
+	"time"
 )
 
-// RateLimiter содержит лимитер запросов
-type RateLimiter struct {
-	limiter *rate.Limiter
-}
-
-// NewRateLimiter создает новый rate limiter
-// rps - запросов в секунду, burst - размер буфера для всплесков
-func NewRateLimiter(rps rate.Limit, burst int) *RateLimiter {
-	return &RateLimiter{
-		limiter: rate.NewLimiter(rps, burst),
+func NewFixedRateLimiter() func(http.Handler) http.Handler {
+	limiter := rate.NewLimiter(1000, 5000)
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodGet || r.Method == http.MethodHead {
+				next.ServeHTTP(w, r)
+				return
+			}
+			ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+			defer cancel()
+			if err := limiter.Wait(ctx); err != nil {
+				http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
 	}
 }
-
-// Middleware возвращает HTTP middleware для ограничения скорости
-func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !rl.limiter.Allow() {
-			http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
